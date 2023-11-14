@@ -143,13 +143,26 @@ def create_template(rad_cos_freq, drag_min, drag_max, drag_num):
         )
 
 
-demo = gr.Interface(fn=create_template,
-                    inputs=[gr.Slider(0, 10, step=0.1, value=5),
-                            gr.Slider(0, 1.0, step=0.1, value=0.8),
-                            gr.Slider(0, 0.99, step=0.05, value=0.9),
-                            gr.Slider(10, 100, step=5, value=60)
-                            ],
-                    outputs="image")
+def run_stable_diff(prompt, image):
+    return image
+
+
+with gr.Blocks() as demo:
+    gr.Markdown("Create Stable Diffusion images with AlgoArt.")
+    with gr.Tab("Generate AlgoArt") as algoarttab:
+        algoart_row = gr.Interface(
+            fn=create_template,
+            inputs=[gr.Slider(0, 10, step=0.1, value=5),
+                    gr.Slider(0, 1.0, step=0.1, value=0.8),
+                    gr.Slider(0, 0.99, step=0.05, value=0.9),
+                    gr.Slider(10, 100, step=5, value=60)
+                    ],
+            outputs="image")
+    with gr.Tab("Stable Diffusion"):
+        gr.Interface(
+            fn=run_stable_diff,
+            inputs=['text', algoart_row.output_components[0]],
+            outputs="image")
 
 
 if __name__ == "__main__":
