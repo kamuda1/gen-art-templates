@@ -1,0 +1,14 @@
+[tool.poetry]
+name = "interactivevideoart"
+version = "0.1.0"
+description = ""
+authors = ["Mark Kamuda <mark.kamuda@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+gradio = "4.2.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
