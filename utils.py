@@ -7,6 +7,17 @@ from PIL import Image
 import numpy as np
 
 
+import os
+import matplotlib.pyplot as plt
+from matplotlib.colors import *
+import matplotlib as mpl
+from matplotlib import cm
+from matplotlib.collections import LineCollection
+from matplotlib.pyplot import get_cmap
+from PIL import Image
+import io
+
+
 def plot_helper(data_image, axs, drag_index, linewidths=3):
     """
     Plots stuff
@@ -64,11 +75,12 @@ def test4(func,
           radius_init=0,
           rad_sin_amp=0,
           rad_cos_amp=0,
-          show_plot=False):
+          show_plot=False,
+          border_amt=0.1):
 
     t = np.linspace(t_min, t_max, t_steps)
 
-    xmax_scale = xmin_scale = ymin_scale = ymax_scale = 0.01
+    xmax_scale = xmin_scale = ymin_scale = ymax_scale = border_amt
 
     fig = plt.figure(constrained_layout=False,
                      frameon=False,
@@ -90,6 +102,7 @@ def test4(func,
         data_image[data_image.real.argmax()].real + xmax_scale * x_len,
         data_image[data_image.imag.argmin()].imag - ymin_scale * y_len,
         data_image[data_image.imag.argmax()].imag + ymax_scale * y_len]
+    print(x_len, y_len, img_bounds)
     # ax = add_scatter_noise(ax, int(noise_num), img_bounds)
 
     for drag_index, drag in enumerate(np.linspace(drag_min, drag_max, drag_num)):
@@ -101,17 +114,13 @@ def test4(func,
     plt.ylim([img_bounds[2],
               img_bounds[3]])
 
-    plt.cla()
-    plt.xlim([-1,
-              1])
-    plt.ylim([-1,
-              1])
-    for drag_index, drag in enumerate(np.linspace(drag_min, drag_max, drag_num)):
-        data_image = drag * data_inputspace
-        ax = plot_helper(data_image, ax, drag_index)
-
-    plt.savefig('test_fig.png', format='png')
-    im = Image.open('test_fig.png')
+    # plt.cla()
+    # for drag_index, drag in enumerate(np.linspace(drag_min, drag_max, drag_num)):
+    #     data_image = drag * data_inputspace
+    #     ax = plot_helper(data_image, ax, drag_index)
+    image_path = os.path.join('images', 'test_fig.png')
+    plt.savefig(image_path, format='png')
+    im = Image.open(image_path)
     return im
 
 def g_better(z, N):
