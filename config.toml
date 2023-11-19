@@ -1,0 +1,6 @@
+title = "PublicControlNet"
+
+[diffuser.settings]
+use_gpu = true
+use_half_precision = true
+enable_xformers_attention = true

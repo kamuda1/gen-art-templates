@@ -45,6 +45,7 @@ USER appuser
 
 # Copy the source code into the container.
 COPY main.py main.py
+COPY diffuser.py diffuser.py
 COPY flagged flagged
 
 # Expose the port that the application listens on.

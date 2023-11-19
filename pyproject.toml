@@ -11,7 +11,22 @@ gradio = "4.2.0"
 matplotlib = "3.8.1"
 numpy = "^1.26.2"
 pillow = "^10.1.0"
+tomli = "^2.0.1"
+diffusers = "^0.23.0"
+transformers = "^4.35.0"
+torch = [
+    { version = "^2.1.0", source = "pytorch", platform = "!=darwin"},
+    { version = "^2.1.0", source = "pypi", platform = "darwin"},
+]
+accelerate = "^0.24.1"
+xformers = "^0.0.22.post7"
+omegaconf = "^2.3.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[[tool.poetry.source]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cu121"
+priority = "explicit"
