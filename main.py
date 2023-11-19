@@ -1,4 +1,5 @@
 import gradio as gr
+import os
 import matplotlib.pyplot as plt
 from matplotlib.colors import *
 import matplotlib as mpl
@@ -66,11 +67,12 @@ def test4(func,
           radius_init=0,
           rad_sin_amp=0,
           rad_cos_amp=0,
-          show_plot=False):
+          show_plot=False,
+          border_amt=0.1):
 
     t = np.linspace(t_min, t_max, t_steps)
 
-    xmax_scale = xmin_scale = ymin_scale = ymax_scale = 0.01
+    xmax_scale = xmin_scale = ymin_scale = ymax_scale = border_amt
 
     fig = plt.figure(constrained_layout=False,
                      frameon=False,
@@ -92,6 +94,7 @@ def test4(func,
         data_image[data_image.real.argmax()].real + xmax_scale * x_len,
         data_image[data_image.imag.argmin()].imag - ymin_scale * y_len,
         data_image[data_image.imag.argmax()].imag + ymax_scale * y_len]
+    print(x_len, y_len, img_bounds)
     # ax = add_scatter_noise(ax, int(noise_num), img_bounds)
 
     for drag_index, drag in enumerate(np.linspace(drag_min, drag_max, drag_num)):
@@ -103,17 +106,13 @@ def test4(func,
     plt.ylim([img_bounds[2],
               img_bounds[3]])
 
-    plt.cla()
-    plt.xlim([-1,
-              1])
-    plt.ylim([-1,
-              1])
-    for drag_index, drag in enumerate(np.linspace(drag_min, drag_max, drag_num)):
-        data_image = drag * data_inputspace
-        ax = plot_helper(data_image, ax, drag_index)
-
-    plt.savefig('test_fig.png', format='png')
-    im = Image.open('test_fig.png')
+    # plt.cla()
+    # for drag_index, drag in enumerate(np.linspace(drag_min, drag_max, drag_num)):
+    #     data_image = drag * data_inputspace
+    #     ax = plot_helper(data_image, ax, drag_index)
+    image_path = os.path.join('images', 'test_fig.png')
+    plt.savefig(image_path, format='png')
+    im = Image.open(image_path)
     return im
 
 def g_better(z, N):
@@ -126,7 +125,7 @@ def g_better(z, N):
     return np.polynomial.polynomial.polyval(z, coeffs)
 
 
-def create_template(rad_cos_freq, drag_min, drag_max, drag_num):
+def create_template(rad_cos_freq, drag_min, drag_max, drag_num, t_steps, border_amt):
     return test4(
         g_better,
         drag_min=drag_min,
@@ -134,12 +133,13 @@ def create_template(rad_cos_freq, drag_min, drag_max, drag_num):
         drag_num=drag_num,
         t_min=0.0 * np.pi,
         t_max=2.0 * np.pi,
-        t_steps=5000,
+        t_steps=t_steps,
         total_terms=9,
         rad_cos_freq=rad_cos_freq,
         rad_sin_freq=3,
         rad_sin_amp=1,
         rad_cos_amp=1,
+        border_amt=border_amt,
         )
 
 
@@ -155,7 +155,9 @@ with gr.Blocks() as demo:
             inputs=[gr.Slider(0, 10, step=0.1, value=5),
                     gr.Slider(0, 1.0, step=0.1, value=0.8),
                     gr.Slider(0, 0.99, step=0.05, value=0.9),
-                    gr.Slider(10, 100, step=5, value=60)
+                    gr.Slider(10, 100, step=5, value=60),
+                    gr.Slider(500, 10000, step=500, value=5000),
+                    gr.Dropdown([0.01, 0.1], value=0.01),
                     ],
             outputs="image")
     with gr.Tab("Stable Diffusion"):

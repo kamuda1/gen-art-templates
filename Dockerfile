@@ -40,6 +40,9 @@ RUN pip3 install poetry
 RUN poetry config virtualenvs.create false
 RUN poetry install
 
+RUN mkdir -p images
+RUN chown appuser images
+
 # Switch to the non-privileged user to run the application.
 USER appuser
 
