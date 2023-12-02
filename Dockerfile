@@ -4,7 +4,7 @@
 # If you need more help, visit the Dockerfile reference guide at
 # https://docs.docker.com/engine/reference/builder/
 
-ARG PYTHON_VERSION=3.9.13
+ARG PYTHON_VERSION=3.10
 FROM python:${PYTHON_VERSION}-slim as base
 
 # Prevents Python from writing pyc files.
@@ -43,12 +43,19 @@ RUN poetry install
 RUN mkdir -p images
 RUN chown appuser images
 
+RUN mkdir -p nonexistent
+RUN chown appuser nonexistent
+
 # Switch to the non-privileged user to run the application.
 USER appuser
 
 # Copy the source code into the container.
+COPY models models
 COPY main.py main.py
 COPY diffuser.py diffuser.py
+COPY config.py config.py
+COPY config.toml config.toml
+copy utils.py utils.py
 COPY flagged flagged
 
 # Expose the port that the application listens on.

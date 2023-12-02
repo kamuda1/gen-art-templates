@@ -1,12 +1,3 @@
-import matplotlib.pyplot as plt
-import matplotlib as mpl
-from matplotlib import cm
-from matplotlib.collections import LineCollection
-from matplotlib.pyplot import get_cmap
-from PIL import Image
-import numpy as np
-
-
 import os
 import matplotlib.pyplot as plt
 from matplotlib.colors import *
@@ -15,7 +6,6 @@ from matplotlib import cm
 from matplotlib.collections import LineCollection
 from matplotlib.pyplot import get_cmap
 from PIL import Image
-import io
 
 
 def plot_helper(data_image, axs, drag_index, linewidths=3):

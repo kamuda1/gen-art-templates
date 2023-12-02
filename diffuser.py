@@ -24,7 +24,7 @@ class Diffuser:  # pylint: disable=too-few-public-methods
         self.cuda_is_available = torch.cuda.is_available()
 
         if not self.config_settings["use_gpu"]:
-            self.pipeline = StableDiffusionPipeline.from_single_file(model_name)
+            self.pipeline = StableDiffusionPipeline.from_pretrained(model_name)
             return
 
         if self.config_settings["use_half_precision"]:
@@ -33,7 +33,8 @@ class Diffuser:  # pylint: disable=too-few-public-methods
         else:
             torch_dtype = torch.float32  # pylint: disable=no-member
 
-        self.pipeline = StableDiffusionPipeline.from_single_file(model_name, torch_dtype=torch_dtype)
+        self.pipeline = StableDiffusionPipeline.from_pretrained(model_name,
+                                                                torch_dtype=torch_dtype)
         self.pipeline.to("cuda")
 
         if self.config_settings["enable_xformers_attention"]:
