@@ -7,8 +7,8 @@ from matplotlib import cm
 from matplotlib.collections import LineCollection
 from matplotlib.pyplot import get_cmap
 from PIL import Image
-import io
-
+from skimage.feature import canny
+from skimage.transform import resize
 
 def plot_helper(data_image, axs, drag_index, linewidths=3):
     """
@@ -144,7 +144,13 @@ def create_template(rad_cos_freq, drag_min, drag_max, drag_num, t_steps, border_
 
 
 def run_stable_diff(prompt, image):
-    return image
+    image_canny = canny(image[:, :, 0])
+    image_canny_reshape = resize(image_canny, (image_canny.shape[0],
+                                               image_canny.shape[0],
+                                               3)
+                                 )
+
+    return image_canny.astype(float)
 
 
 with gr.Blocks() as demo:

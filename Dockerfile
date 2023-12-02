@@ -34,21 +34,21 @@ RUN adduser \
 # Leverage a bind mount to requirements.txt to avoid having to copy them into
 # into this layer.
 
-COPY pyproject.toml /app
+COPY requirements.txt /app
+RUN pip install --upgrade pip
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
-RUN pip3 install poetry
-RUN poetry config virtualenvs.create false
-RUN poetry install
+RUN mkdir -p /app/images
+RUN chown appuser /app/images
 
-RUN mkdir -p images
-RUN chown appuser images
+RUN mkdir -p /app/flagged
+RUN chown appuser /app/flagged
 
 # Switch to the non-privileged user to run the application.
 USER appuser
 
 # Copy the source code into the container.
-COPY main.py main.py
-COPY flagged flagged
+COPY src/main.py /app
 
 # Expose the port that the application listens on.
 EXPOSE 8080
