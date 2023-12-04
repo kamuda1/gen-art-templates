@@ -3,3 +3,6 @@ matplotlib==3.8.1
 numpy==1.26.2
 pillow==10.1.0
 scikit-image==0.22.0
+diffusers==0.24.0
+torch==2.1.1+cu118
+--find-links https://download.pytorch.org/whl/torch_stable.html

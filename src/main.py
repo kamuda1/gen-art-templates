@@ -1,56 +1,99 @@
-import gradio as gr
 import os
-import matplotlib.pyplot as plt
 from matplotlib.colors import *
-import matplotlib as mpl
-from matplotlib import cm
-from matplotlib.collections import LineCollection
-from matplotlib.pyplot import get_cmap
-from PIL import Image
 from skimage.feature import canny
 from skimage.transform import resize
-
-def plot_helper(data_image, axs, drag_index, linewidths=3):
-    """
-    Plots stuff
-    """
-    x, y = data_image.real, data_image.imag
-    points = np.array([x, y]).T.reshape(-1, 1, 2)
-    segments = np.concatenate([points[:-1], points[1:]], axis=1)
-
-    # Create a continuous norm to map from data points to colors
-    cmap = get_cmap('twilight')
-    # norm = plt.Normalize(0.75, 0.8*len(x))
-    norm = plt.Normalize(0.0*len(x), 1 * len(x))
-    # norm = BoundaryNorm([coeff*len(x) for coeff in np.linspace(-0.2, 0.8, 20)],
-
-    # data_image_grad = np.gradient(data_image)
-    # norm = 100 * abs(data_image_grad)
-    #                     ncolors=cmap.N//1.5)
-    lc = LineCollection(segments, cmap=cmap, norm=norm, linewidths=linewidths)
-
-    # col = MplColorHelper('bone', 0, len(x))
-    # colors = col.get_rgb(segments)
-    # lc = LineCollection(segments, colors=colors, linewidths=linewidths)
-
-    # Set the values used for colormapping
-    lc.set_array(list(range(len(x))))
-    lc.set_linewidth(2)
-    line = axs.add_collection(lc)
-
-    return axs
+import gradio as gr
+# from utils import *
+import sys
+from diffusers import StableDiffusionControlNetPipeline, ControlNetModel
 
 
-class MplColorHelper:
+script_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+cache_dir = os.path.join(script_dir, 'cache_dir')
 
-  def __init__(self, cmap_name, start_val, stop_val):
-    self.cmap_name = cmap_name
-    self.cmap = plt.get_cmap(cmap_name)
-    self.norm = mpl.colors.Normalize(vmin=start_val, vmax=stop_val)
-    self.scalarMap = cm.ScalarMappable(norm=self.norm, cmap=self.cmap)
+models_dir = os.path.join(script_dir, 'models')
 
-  def get_rgb(self, val):
-    return self.scalarMap.to_rgba(val)
+
+# url = "https://huggingface.co/lllyasviel/ControlNet-v1-1/blob/main/control_v11p_sd15_canny.pth"  # can also be a local path
+control_net_model = os.path.join(models_dir, "control_v11p_sd15_canny.pth")
+controlnet = ControlNetModel.from_single_file(control_net_model,
+                                              cache_dir=cache_dir,
+                                              local_files_only=False,
+                                              safety_checker=None)
+
+
+# url = "https://huggingface.co/runwayml/stable-diffusion-v1-5/blob/main/v1-5-pruned.safetensors"  # can also be a local path
+stablediff_model = os.path.join(models_dir, "epicrealism_naturalSinRC1VAE.safetensors")
+pipe = StableDiffusionControlNetPipeline.from_single_file(
+    stablediff_model,
+    controlnet=controlnet,
+    cache_dir=cache_dir,
+    local_files_only=False)
+pipe.safety_checker = None
+
+def create_template(rad_cos_freq, drag_min, drag_max, drag_num, t_steps, border_amt):
+    return test4(
+        g_better,
+        drag_min=drag_min,
+        drag_max=drag_max,
+        drag_num=drag_num,
+        t_min=0.0 * np.pi,
+        t_max=2.0 * np.pi,
+        t_steps=t_steps,
+        total_terms=9,
+        rad_cos_freq=rad_cos_freq,
+        rad_sin_freq=3,
+        rad_sin_amp=1,
+        rad_cos_amp=1,
+        border_amt=border_amt,
+        )
+
+
+def run_stable_diff(prompt, image, num_inference_steps):
+
+    image_canny = canny(image[:, :, 0])
+    image_canny_reshape = resize(image_canny, (image_canny.shape[0],
+                                               image_canny.shape[0],
+                                               3)
+                                 ).astype(float)
+
+    return_image = pipe(prompt,
+                        [image_canny_reshape],
+                        height=256,
+                        width=256,
+                        num_inference_steps=num_inference_steps,
+                        guidance_scale=7.5,
+                        )[0][0]
+
+    return return_image
+
+
+with gr.Blocks() as demo:
+    gr.Markdown("Create Stable Diffusion images with AlgoArt.")
+    with gr.Tab("Generate AlgoArt") as algoarttab:
+        algoart_row = gr.Interface(
+            fn=create_template,
+            inputs=[gr.Slider(0, 10, step=0.1, value=5),
+                    gr.Slider(0, 1.0, step=0.1, value=0.3),
+                    gr.Slider(0, 0.99, step=0.05, value=0.4),
+                    gr.Slider(10, 100, step=5, value=20),
+                    gr.Slider(500, 10000, step=500, value=500),
+                    gr.Dropdown([0.01, 0.1], value=0.01),
+                    ],
+            outputs="image")
+    with gr.Tab("Stable Diffusion"):
+        gr.Interface(
+            fn=run_stable_diff,
+            inputs=['text',
+                    algoart_row.output_components[0],
+                    gr.Slider(5, 50, step=5, value=15)
+                    ],
+            outputs="image")
+
+
+if __name__ == "__main__":
+    demo.launch(show_api=False, server_name="0.0.0.0", server_port=8000)
+
 
 
 def test4(func,
@@ -123,55 +166,3 @@ def g_better(z, N):
     coeffs = np.zeros(np.max(powers_to_use) + 1)
     coeffs[powers_to_use] = 1
     return np.polynomial.polynomial.polyval(z, coeffs)
-
-
-def create_template(rad_cos_freq, drag_min, drag_max, drag_num, t_steps, border_amt):
-    return test4(
-        g_better,
-        drag_min=drag_min,
-        drag_max=drag_max,
-        drag_num=drag_num,
-        t_min=0.0 * np.pi,
-        t_max=2.0 * np.pi,
-        t_steps=t_steps,
-        total_terms=9,
-        rad_cos_freq=rad_cos_freq,
-        rad_sin_freq=3,
-        rad_sin_amp=1,
-        rad_cos_amp=1,
-        border_amt=border_amt,
-        )
-
-
-def run_stable_diff(prompt, image):
-    image_canny = canny(image[:, :, 0])
-    image_canny_reshape = resize(image_canny, (image_canny.shape[0],
-                                               image_canny.shape[0],
-                                               3)
-                                 )
-
-    return image_canny.astype(float)
-
-
-with gr.Blocks() as demo:
-    gr.Markdown("Create Stable Diffusion images with AlgoArt.")
-    with gr.Tab("Generate AlgoArt") as algoarttab:
-        algoart_row = gr.Interface(
-            fn=create_template,
-            inputs=[gr.Slider(0, 10, step=0.1, value=5),
-                    gr.Slider(0, 1.0, step=0.1, value=0.8),
-                    gr.Slider(0, 0.99, step=0.05, value=0.9),
-                    gr.Slider(10, 100, step=5, value=60),
-                    gr.Slider(500, 10000, step=500, value=5000),
-                    gr.Dropdown([0.01, 0.1], value=0.01),
-                    ],
-            outputs="image")
-    with gr.Tab("Stable Diffusion"):
-        gr.Interface(
-            fn=run_stable_diff,
-            inputs=['text', algoart_row.output_components[0]],
-            outputs="image")
-
-
-if __name__ == "__main__":
-    demo.launch(show_api=False, server_name="0.0.0.0", server_port=8000)
