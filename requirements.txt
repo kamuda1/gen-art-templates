@@ -7,4 +7,5 @@ diffusers==0.24.0
 transformers==4.35.2
 omegaconf==2.3.0
 torch==2.1.1+cu118
+google-cloud-storage==2.13.0
 --find-links https://download.pytorch.org/whl/torch_stable.html

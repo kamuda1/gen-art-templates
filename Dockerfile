@@ -4,7 +4,8 @@
 # If you need more help, visit the Dockerfile reference guide at
 # https://docs.docker.com/engine/reference/builder/
 
-FROM nvidia/cuda:11.0.3-base-ubuntu20.04
+# FROM nvidia/cuda:11.0.3-base-ubuntu20.04
+FROM gcr.io/deeplearning-platform-release/pytorch-gpu.1-13.py310:latest
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
@@ -34,7 +35,7 @@ ARG UID=10001
 RUN adduser \
     --disabled-password \
     --gecos "" \
-    --home "/nonexistent" \
+   # --home "/nonexistent" \
     --shell "/sbin/nologin" \
     --no-create-home \
     --uid "${UID}" \
@@ -48,6 +49,8 @@ RUN adduser \
 COPY requirements.txt /app
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install --no-cache-dir -r /app/requirements.txt
+
+RUN chown appuser /nonexistent
 
 RUN mkdir -p /app/images
 RUN chown appuser /app/images

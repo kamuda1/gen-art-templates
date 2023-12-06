@@ -1,36 +1,70 @@
-import os
-from matplotlib.colors import *
 from skimage.feature import canny
 from skimage.transform import resize
-import gradio as gr
-# from utils import *
 import sys
 from diffusers import StableDiffusionControlNetPipeline, ControlNetModel
+import gradio as gr
+import os
 import matplotlib.pyplot as plt
-
+from matplotlib.colors import *
+from matplotlib.collections import LineCollection
+from matplotlib.pyplot import get_cmap
+from PIL import Image
+from transformers import CLIPTextModel
+from google.cloud import storage
 
 script_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
-cache_dir = os.path.join(script_dir, 'cache_dir')
+cache_dir = os.path.join(script_dir, 'models')
 
 models_dir = os.path.join(script_dir, 'models')
 
 
 # url = "https://huggingface.co/lllyasviel/ControlNet-v1-1/blob/main/control_v11p_sd15_canny.pth"  # can also be a local path
+# control_net_model = "control_v11p_sd15_canny.pth"
 control_net_model = os.path.join(models_dir, "control_v11p_sd15_canny.pth")
 controlnet = ControlNetModel.from_single_file(control_net_model,
                                               cache_dir=cache_dir,
-                                              local_files_only=False,
+                                              local_files_only=True,
                                               safety_checker=None)
 
-
+clip_transformer = CLIPTextModel.from_pretrained("openai/clip-vit-large-patch14", revision='0993c71e8ad62658387de2714a69f723ddfffacb')
 # url = "https://huggingface.co/runwayml/stable-diffusion-v1-5/blob/main/v1-5-pruned.safetensors"  # can also be a local path
+# stablediff_model = "epicrealism_naturalSinRC1VAE.safetensors"
 stablediff_model = os.path.join(models_dir, "epicrealism_naturalSinRC1VAE.safetensors")
 pipe = StableDiffusionControlNetPipeline.from_single_file(
     stablediff_model,
     controlnet=controlnet,
     cache_dir=cache_dir,
-    local_files_only=False)
+    local_files_only=True,
+    text_encoder=clip_transformer)
 pipe.safety_checker = None
+
+
+def upload_blob(bucket_name, source_file_name, destination_blob_name):
+    """Uploads a file to the bucket."""
+    # The ID of your GCS bucket
+    # bucket_name = "your-bucket-name"
+    # The path to your file to upload
+    # source_file_name = "local/path/to/file"
+    # The ID of your GCS object
+    # destination_blob_name = "storage-object-name"
+
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(destination_blob_name)
+
+    # Optional: set a generation-match precondition to avoid potential race conditions
+    # and data corruptions. The request to upload is aborted if the object's
+    # generation number does not match your precondition. For a destination
+    # object that does not yet exist, set the if_generation_match precondition to 0.
+    # If the destination object already exists in your bucket, set instead a
+    # generation-match precondition using its generation number.
+    generation_match_precondition = 0
+
+    blob.upload_from_filename(source_file_name, if_generation_match=generation_match_precondition)
+
+    print(
+        f"File {source_file_name} uploaded to {destination_blob_name}."
+    )
 
 
 def plot_helper(data_image, axs, drag_index, linewidths=3):
@@ -121,7 +155,7 @@ def test4(func,
     # for drag_index, drag in enumerate(np.linspace(drag_min, drag_max, drag_num)):
     #     data_image = drag * data_inputspace
     #     ax = plot_helper(data_image, ax, drag_index)
-    image_path = os.path.join('images', 'test_fig.png')
+    image_path = os.path.join(script_dir, 'images', 'test_fig.png')
     plt.savefig(image_path, format='png')
     im = Image.open(image_path)
     return im
@@ -155,23 +189,35 @@ def create_template(rad_cos_freq, drag_min, drag_max, drag_num, t_steps, border_
         )
 
 
-def run_stable_diff(prompt, image, num_inference_steps):
+def run_stable_diff(prompt, image, num_inference_steps, guidance_scale):
 
     image_canny = canny(image[:, :, 0])
     image_canny_reshape = resize(image_canny, (image_canny.shape[0],
                                                image_canny.shape[0],
                                                3)
                                  ).astype(float)
-
+    plt.imshow(image_canny_reshape)
+    image_path = os.path.join(script_dir, 'images', 'test_fig.png')
+    plt.savefig(image_path, format='png')
     return_image = pipe(prompt,
                         [image_canny_reshape],
                         height=256,
                         width=256,
                         num_inference_steps=num_inference_steps,
-                        guidance_scale=7.5,
+                        guidance_scale=guidance_scale,
                         )[0][0]
 
     return return_image
+
+
+def click_func(image):
+    plt.imshow(image)
+    image_path = os.path.join(script_dir, 'images', 'test_fig_saved.png')
+    plt.savefig(image_path, format='png')
+
+    upload_blob('public_controlnet_images',
+                image_path,
+                'test_img.png')
 
 
 with gr.Blocks() as demo:
@@ -188,13 +234,17 @@ with gr.Blocks() as demo:
                     ],
             outputs="image")
     with gr.Tab("Stable Diffusion"):
-        gr.Interface(
+        stable_diffusion_row = gr.Interface(
             fn=run_stable_diff,
             inputs=['text',
                     algoart_row.output_components[0],
-                    gr.Slider(5, 50, step=5, value=15)
+                    gr.Slider(5, 150, step=5, value=15),
+                    gr.Slider(0.0, 25.0, step=0.1, value=1.0)
                     ],
             outputs="image")
+
+        btn = gr.Button(value="Upload Image")
+        btn.click(click_func, inputs=[stable_diffusion_row.output_components[0]])
 
 
 if __name__ == "__main__":
