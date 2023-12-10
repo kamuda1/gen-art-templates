@@ -23,10 +23,11 @@ models_dir = os.path.join(script_dir, 'models')
 control_net_model = os.path.join(models_dir, "control_v11p_sd15_canny.pth")
 controlnet = ControlNetModel.from_single_file(control_net_model,
                                               cache_dir=cache_dir,
-                                              local_files_only=True,
+                                              local_files_only=False,
                                               safety_checker=None)
 
-clip_transformer = CLIPTextModel.from_pretrained("openai/clip-vit-large-patch14", revision='0993c71e8ad62658387de2714a69f723ddfffacb')
+clip_model = "openai/clip-vit-large-patch14"
+clip_transformer = CLIPTextModel.from_pretrained(clip_model, revision='0993c71e8ad62658387de2714a69f723ddfffacb')
 # url = "https://huggingface.co/runwayml/stable-diffusion-v1-5/blob/main/v1-5-pruned.safetensors"  # can also be a local path
 # stablediff_model = "epicrealism_naturalSinRC1VAE.safetensors"
 stablediff_model = os.path.join(models_dir, "epicrealism_naturalSinRC1VAE.safetensors")
@@ -34,7 +35,7 @@ pipe = StableDiffusionControlNetPipeline.from_single_file(
     stablediff_model,
     controlnet=controlnet,
     cache_dir=cache_dir,
-    local_files_only=True,
+    local_files_only=False,
     text_encoder=clip_transformer)
 pipe.safety_checker = None
 
@@ -189,11 +190,14 @@ def create_template(rad_cos_freq, drag_min, drag_max, drag_num, t_steps, border_
         )
 
 
-def run_stable_diff(prompt, image, num_inference_steps, guidance_scale):
+def run_stable_diff(prompt, image, num_inference_steps, guidance_scale, sigma, low_threshold, high_threshold):
 
-    image_canny = canny(image[:, :, 0])
-    image_canny_reshape = resize(image_canny, (image_canny.shape[0],
-                                               image_canny.shape[0],
+    image_canny = canny(image[:, :, 0],
+                        sigma=sigma,
+                        low_threshold=low_threshold,
+                        high_threshold=high_threshold,)
+    image_canny_reshape = resize(image_canny, (512,
+                                               512,
                                                3)
                                  ).astype(float)
     plt.imshow(image_canny_reshape)
@@ -201,12 +205,15 @@ def run_stable_diff(prompt, image, num_inference_steps, guidance_scale):
     plt.savefig(image_path, format='png')
     return_image = pipe(prompt,
                         [image_canny_reshape],
-                        height=256,
-                        width=256,
+                        height=512,
+                        width=512,
                         num_inference_steps=num_inference_steps,
                         guidance_scale=guidance_scale,
                         )[0][0]
-
+    plt.close()
+    plt.imshow(return_image)
+    image_path = os.path.join(script_dir, 'images', 'return_fig.png')
+    plt.savefig(image_path, format='png')
     return return_image
 
 
@@ -239,7 +246,10 @@ with gr.Blocks() as demo:
             inputs=['text',
                     algoart_row.output_components[0],
                     gr.Slider(5, 150, step=5, value=15),
-                    gr.Slider(0.0, 25.0, step=0.1, value=1.0)
+                    gr.Slider(0.0, 25.0, step=0.1, value=1.0),
+                    gr.Slider(0.0, 20.0, step=0.1, value=2.5),
+                    gr.Slider(0.0, 500.0, step=0.1, value=0.0),
+                    gr.Slider(0.0, 500.0, step=0.1, value=16.0),
                     ],
             outputs="image")
 

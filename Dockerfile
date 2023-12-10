@@ -35,7 +35,7 @@ ARG UID=10001
 RUN adduser \
     --disabled-password \
     --gecos "" \
-   # --home "/nonexistent" \
+    # --home "/nonexistent" \
     --shell "/sbin/nologin" \
     --no-create-home \
     --uid "${UID}" \
@@ -50,7 +50,7 @@ COPY requirements.txt /app
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install --no-cache-dir -r /app/requirements.txt
 
-RUN chown appuser /nonexistent
+# RUN chown appuser /nonexistent
 
 RUN mkdir -p /app/images
 RUN chown appuser /app/images
@@ -61,15 +61,18 @@ RUN chown appuser /app/flagged
 RUN mkdir -p /app/cache_dir
 RUN chown appuser /app/cache_dir
 
-# Switch to the non-privileged user to run the application.
-USER appuser
+RUN mkdir -p /home/appuser
+RUN chown appuser /home/appuser
 
 # Copy the source code into the container.
+COPY src/models /app/models
 COPY src/main.py /app
-COPY src/models /app
 
 # Expose the port that the application listens on.
 EXPOSE 8080
+
+# Switch to the non-privileged user to run the application.
+USER appuser
 
 # Run the application.
 CMD python main.py
