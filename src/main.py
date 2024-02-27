@@ -20,7 +20,7 @@ models_dir = os.path.join(script_dir, 'models')
 
 # url = "https://huggingface.co/lllyasviel/ControlNet-v1-1/blob/main/control_v11p_sd15_canny.pth"  # can also be a local path
 # control_net_model = "control_v11p_sd15_canny.pth"
-control_net_model = os.path.join(models_dir, "control_v11p_sd15_canny.pth")
+control_net_model = os.path.join(models_dir, "control_sd15_canny.pth")
 controlnet = ControlNetModel.from_single_file(control_net_model,
                                               cache_dir=cache_dir,
                                               local_files_only=False,
@@ -61,7 +61,7 @@ def upload_blob(bucket_name, source_file_name, destination_blob_name):
     # generation-match precondition using its generation number.
     generation_match_precondition = 0
 
-    blob.upload_from_filename(source_file_name, if_generation_match=generation_match_precondition)
+    blob.upload_from_filename(source_file_name)
 
     print(
         f"File {source_file_name} uploaded to {destination_blob_name}."
