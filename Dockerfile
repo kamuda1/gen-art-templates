@@ -27,7 +27,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=${PYTHONPATH}:${PWD}
 
-WORKDIR /app
+WORKDIR /src
 
 # Create a non-privileged user that the app will run under.
 # See https://docs.docker.com/go/dockerfile-user-best-practices/
@@ -53,6 +53,12 @@ RUN python3 -m pip install --no-cache-dir -r requirements.txt
 RUN mkdir -p /src/images
 RUN chown appuser /src/images
 
+RUN mkdir -p /src/models
+RUN chown appuser /src/models
+
+RUN mkdir -p /src/models/openai/clip-vit-large-patch14
+RUN chown appuser /src/models/openai/clip-vit-large-patch14
+
 RUN mkdir -p /src/flagged
 RUN chown appuser /src/flagged
 
@@ -66,6 +72,7 @@ RUN chown appuser /home/appuser
 COPY src/main.py /src
 COPY src/generative_template.py /src
 COPY src/gcp_utils.py /src
+COPY src/__init__.py /src
 
 # Expose the port that the application listens on.
 EXPOSE 8080

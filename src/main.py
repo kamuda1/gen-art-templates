@@ -9,8 +9,8 @@ from PIL import Image
 from transformers import CLIPTextModel, CLIPTokenizer
 from google.cloud import storage
 
-from src.gcp_utils import upload_blob
-from src.generative_template import create_template
+from gcp_utils import upload_blob
+from generative_template import create_template
 from pathlib import Path
 
 
@@ -19,7 +19,7 @@ class MainApp:
         self.script_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
         self.models_dir = os.path.join(self.script_dir, 'models')
 
-        storage_client = storage.Client(os.getenv('PROJECT_NAME'))
+        storage_client = storage.Client(os.getenv('PROJECT_ID'))
         self.bucket = storage_client.get_bucket(os.getenv('MODEL_BUCKET'))
 
         self.control_net_filepath = os.path.join(self.models_dir, "control_sd15_canny.pth")
@@ -34,21 +34,28 @@ class MainApp:
             if '.git' in blob.name:
                 continue
             filename = blob.name.split('/')[-1]
-            if not os.path.isfile(filename):
+            if not os.path.isfile(os.path.join(destination_directory, filename)):
                 blob.download_to_filename(os.path.join(destination_directory, filename))
 
     def download_models(self):
-
+        print('=== CHECKING CANNY FILE ===')
         if not os.path.isfile(self.control_net_filepath):
+            print('=== LOADING CANNY FILE ===')
             canny_blob = self.bucket.blob("models/control_sd15_canny.pth")
             canny_blob.download_to_filename(self.control_net_filepath)
+            print('=== LOADED CANNY FILE ===')
 
+        print('=== CHECKING CLIP FILE ===')
         self.download_many_blobs("models/openai/clip-vit-large-patch14",
                                  os.path.join(self.models_dir, "openai", "clip-vit-large-patch14"))
+        print('=== LOADED CLIP FILE ===')
 
+        print('=== CHECKING SD FILE ===')
         if not os.path.isfile(self.stablediff_model_filepath):
+            print('=== LOADING SD FILE ===')
             stablediffusion_blob = self.bucket.blob("models/epicrealism_naturalSinRC1VAE.safetensors")
             stablediffusion_blob.download_to_filename(self.stablediff_model_filepath)
+        print('=== LOADED SD FILE ===')
 
     def initialize_models(self):
         controlnet = ControlNetModel.from_single_file(
@@ -122,5 +129,6 @@ class MainApp:
 
 
 if __name__ == "__main__":
+    print('=== RUNNING MAIN ===')
     main_app = MainApp()
     main_app.run()
