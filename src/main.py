@@ -28,8 +28,14 @@ class MainApp:
         self.download_models()
         self.initialize_models()
 
-    def download_files_from_bucket(self, bucket, bucket_path):
-        pass
+    def download_many_blobs(self, prefix, destination_directory=""):
+        blobs = self.bucket.list_blobs(prefix=prefix)  # Get list of files
+        for blob in blobs:
+            if '.git' in blob.name:
+                continue
+            filename = blob.name.split('/')[-1]
+            if not os.path.isfile(filename):
+                blob.download_to_filename(os.path.join(destination_directory, filename))
 
     def download_models(self):
 
@@ -37,8 +43,8 @@ class MainApp:
             canny_blob = self.bucket.blob("models/control_sd15_canny.pth")
             canny_blob.download_to_filename(self.control_net_filepath)
 
-        if not Path(self.clip_model_path).is_dir():
-            self.download_files_from_bucket(self.bucket, "openai/clip-vit-large-patch14")
+        self.download_many_blobs("models/openai/clip-vit-large-patch14",
+                                 os.path.join(self.models_dir, "openai", "clip-vit-large-patch14"))
 
         if not os.path.isfile(self.stablediff_model_filepath):
             stablediffusion_blob = self.bucket.blob("models/epicrealism_naturalSinRC1VAE.safetensors")
