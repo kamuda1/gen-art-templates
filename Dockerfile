@@ -27,7 +27,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=${PYTHONPATH}:${PWD}
 
-WORKDIR /app
+WORKDIR /src
 
 # Create a non-privileged user that the app will run under.
 # See https://docs.docker.com/go/dockerfile-user-best-practices/
@@ -46,27 +46,25 @@ RUN adduser \
 # Leverage a bind mount to requirements.txt to avoid having to copy them into
 # into this layer.
 
-COPY requirements.txt /app
+COPY requirements.txt /src
 RUN python3 -m pip install --upgrade pip
-RUN python3 -m pip install --no-cache-dir -r /app/requirements.txt
+RUN python3 -m pip install --no-cache-dir -r /src/requirements.txt
 
-# RUN chown appuser /nonexistent
+RUN mkdir -p /src/images
+RUN chown appuser /src/images
 
-RUN mkdir -p /app/images
-RUN chown appuser /app/images
+RUN mkdir -p /src/flagged
+RUN chown appuser /src/flagged
 
-RUN mkdir -p /app/flagged
-RUN chown appuser /app/flagged
-
-RUN mkdir -p /app/cache_dir
-RUN chown appuser /app/cache_dir
+RUN mkdir -p /src/cache_dir
+RUN chown appuser /src/cache_dir
 
 RUN mkdir -p /home/appuser
 RUN chown appuser /home/appuser
 
 # Copy the source code into the container.
-COPY src/models /app/models
-COPY src/main.py /app
+COPY src/models /src/models
+COPY src/main.py /src
 
 # Expose the port that the application listens on.
 EXPOSE 8080
