@@ -65,7 +65,7 @@ RUN mkdir -p /home/appuser
 RUN chown appuser /home/appuser
 
 # Copy the source code into the container.
-# COPY src/models /app/models
+COPY src/models /app/models
 COPY src/main.py /app
 
 # Expose the port that the application listens on.

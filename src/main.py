@@ -1,7 +1,7 @@
 from skimage.feature import canny
 from skimage.transform import resize
 import sys
-from diffusers import StableDiffusionControlNetPipeline, ControlNetModel
+from diffusers import StableDiffusionControlNetPipeline, ControlNetModel, AutoencoderKL
 import gradio as gr
 import os
 import matplotlib.pyplot as plt
@@ -9,34 +9,62 @@ from matplotlib.colors import *
 from matplotlib.collections import LineCollection
 from matplotlib.pyplot import get_cmap
 from PIL import Image
-from transformers import CLIPTextModel
+from transformers import CLIPTextModel, CLIPTokenizer
 from google.cloud import storage
 
-script_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
-cache_dir = os.path.join(script_dir, 'models')
+class MainApp:
+    def __init__(self):
+        self.script_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+        self.models_dir = os.path.join(self.script_dir, 'models')
+        self.control_net_filepath = os.path.join(self.models_dir, "control_sd15_canny.pth")
 
-models_dir = os.path.join(script_dir, 'models')
+        self.download_models()
+        self.initialize_models()
 
 
-# url = "https://huggingface.co/lllyasviel/ControlNet-v1-1/blob/main/control_v11p_sd15_canny.pth"  # can also be a local path
-# control_net_model = "control_v11p_sd15_canny.pth"
-control_net_model = os.path.join(models_dir, "control_sd15_canny.pth")
-controlnet = ControlNetModel.from_single_file(control_net_model,
-                                              cache_dir=cache_dir,
-                                              local_files_only=False,
-                                              safety_checker=None)
+    def download_models(self):
 
-clip_model = "openai/clip-vit-large-patch14"
-clip_transformer = CLIPTextModel.from_pretrained(clip_model, revision='0993c71e8ad62658387de2714a69f723ddfffacb')
+
+
+        storage_client = storage.Client("utilitarian-web-371700")
+        bucket = storage_client.get_bucket("public_controlnet_models")
+
+        canny_blob = bucket.blob("models/control_sd15_canny.pth")
+        canny_blob.download_to_filename(self.control_net_filepath)
+
+        clip_blob = bucket.blob("openai/clip-vit-large-patch14")
+        clip_blob.download_to_filename(self.control_net_filepath)
+
+    def initialize_models(self):
+        controlnet = ControlNetModel.from_single_file(self.control_net_filepath,
+                                                      cache_dir=self.models_dir,
+                                                      local_files_only=True,
+                                                      safety_checker=None)
+
+# clip_model = "openai/clip-vit-large-patch14"
+# clip_transformer = CLIPTextModel.from_pretrained(clip_model, revision='0993c71e8ad62658387de2714a69f723ddfffacb')
+clip_model_path = os.path.join(models_dir, "openai", "clip-vit-large-patch14")
+clip_transformer = CLIPTextModel.from_pretrained(clip_model_path, local_files_only=True)
+clip_tokenizer = CLIPTokenizer.from_pretrained(clip_model_path, local_files_only=True)
+
+# vae_model_path = os.path.join(models_dir, "openaiclipVitLargePatch14.safetensors")
+# vae = AutoencoderKL.from_pretrained(vae_model_path, local_files_only=True)
+
 # url = "https://huggingface.co/runwayml/stable-diffusion-v1-5/blob/main/v1-5-pruned.safetensors"  # can also be a local path
 # stablediff_model = "epicrealism_naturalSinRC1VAE.safetensors"
-stablediff_model = os.path.join(models_dir, "epicrealism_naturalSinRC1VAE.safetensors")
+stablediff_model_filepath = os.path.join(models_dir, "epicrealism_naturalSinRC1VAE.safetensors")
 pipe = StableDiffusionControlNetPipeline.from_single_file(
-    stablediff_model,
+    stablediff_model_filepath,
     controlnet=controlnet,
     cache_dir=cache_dir,
-    local_files_only=False,
-    text_encoder=clip_transformer)
+    local_files_only=True,
+    text_encoder=clip_transformer,
+    tokenizer=clip_tokenizer,
+    # vae=vae,
+    scheduler_type='ddim',
+    load_safety_checker=False,
+)
+# scheduler_type ["pndm", "lms", "heun", "euler", "euler-ancestral", "dpm", "ddim"]
 pipe.safety_checker = None
 
 
@@ -156,7 +184,7 @@ def test4(func,
     # for drag_index, drag in enumerate(np.linspace(drag_min, drag_max, drag_num)):
     #     data_image = drag * data_inputspace
     #     ax = plot_helper(data_image, ax, drag_index)
-    image_path = os.path.join(script_dir, 'images', 'test_fig.png')
+    image_path = os.path.join(script_dir, 'images', 'template_image.png')
     plt.savefig(image_path, format='png')
     im = Image.open(image_path)
     return im
@@ -217,47 +245,58 @@ def run_stable_diff(prompt, image, num_inference_steps, guidance_scale, sigma, l
     return return_image
 
 
-def click_func(image):
-    plt.imshow(image)
-    image_path = os.path.join(script_dir, 'images', 'test_fig_saved.png')
-    plt.savefig(image_path, format='png')
+def main():
+    im_template = create_template(5, 0.3, 0.4, 20, 500, 0.01)
+    template_filepath = os.path.join(script_dir, 'images', 'template_image.png')
 
+    im_template = np.asarray(Image.open(template_filepath))
+
+    prompt = "Modern art, blue"
+    run_stable_diff(prompt,
+                    im_template,
+                    num_inference_steps=5,
+                    guidance_scale=1.0,
+                    sigma=2.0,
+                    low_threshold=0.0,
+                    high_threshold=16.0)
+
+    output_image_path = os.path.join(script_dir, 'images', 'return_fig.png')
     upload_blob('public_controlnet_images',
-                image_path,
-                'test_img.png')
+                output_image_path,
+                'test_img1.png')
 
 
-with gr.Blocks() as demo:
-    gr.Markdown("Create Stable Diffusion images with AlgoArt.")
-    with gr.Tab("Generate AlgoArt") as algoarttab:
-        algoart_row = gr.Interface(
-            fn=create_template,
-            inputs=[gr.Slider(0, 10, step=0.1, value=5),
-                    gr.Slider(0, 1.0, step=0.1, value=0.3),
-                    gr.Slider(0, 0.99, step=0.05, value=0.4),
-                    gr.Slider(10, 100, step=5, value=20),
-                    gr.Slider(500, 10000, step=500, value=500),
-                    gr.Dropdown([0.01, 0.1], value=0.01),
-                    ],
-            outputs="image")
-    with gr.Tab("Stable Diffusion"):
-        stable_diffusion_row = gr.Interface(
-            fn=run_stable_diff,
-            inputs=['text',
-                    algoart_row.output_components[0],
-                    gr.Slider(5, 150, step=5, value=15),
-                    gr.Slider(0.0, 25.0, step=0.1, value=1.0),
-                    gr.Slider(0.0, 20.0, step=0.1, value=2.5),
-                    gr.Slider(0.0, 500.0, step=0.1, value=0.0),
-                    gr.Slider(0.0, 500.0, step=0.1, value=16.0),
-                    ],
-            outputs="image")
-
-        btn = gr.Button(value="Upload Image")
-        btn.click(click_func, inputs=[stable_diffusion_row.output_components[0]])
-
+# with gr.Blocks() as demo:
+#     gr.Markdown("Create Stable Diffusion images with AlgoArt.")
+#     with gr.Tab("Generate AlgoArt") as algoarttab:
+#         algoart_row = gr.Interface(
+#             fn=create_template,
+#             inputs=[gr.Slider(0, 10, step=0.1, value=5),
+#                     gr.Slider(0, 1.0, step=0.1, value=0.3),
+#                     gr.Slider(0, 0.99, step=0.05, value=0.4),
+#                     gr.Slider(10, 100, step=5, value=20),
+#                     gr.Slider(500, 10000, step=500, value=500),
+#                     gr.Dropdown([0.01, 0.1], value=0.01),
+#                     ],
+#             outputs="image")
+#     with gr.Tab("Stable Diffusion"):
+#         stable_diffusion_row = gr.Interface(
+#             fn=run_stable_diff,
+#             inputs=['text',
+#                     algoart_row.output_components[0],
+#                     gr.Slider(5, 150, step=5, value=15),
+#                     gr.Slider(0.0, 25.0, step=0.1, value=1.0),
+#                     gr.Slider(0.0, 20.0, step=0.1, value=2.5),
+#                     gr.Slider(0.0, 500.0, step=0.1, value=0.0),
+#                     gr.Slider(0.0, 500.0, step=0.1, value=16.0),
+#                     ],
+#             outputs="image")
+#
+#         btn = gr.Button(value="Upload Image")
+#         btn.click(click_func, inputs=[stable_diffusion_row.output_components[0]])
+#
 
 if __name__ == "__main__":
-    demo.launch(show_api=False, server_name="0.0.0.0", server_port=8000)
+    main()
 
 
